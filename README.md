@@ -12,6 +12,35 @@ MCPX runs a small HTTP server inside the Unity Editor on `127.0.0.1:8765`. Query
 
 Tested with Unity 2022.3 LTS (uses only long-stable editor APIs: `HttpListener`, `SerializedObject`, `Undo`, `EditorApplication`).
 
+## Why MCPX? — and when to use a full MCP server instead
+
+MCPX is the second take at driving Unity from the outside. The first was [Unity MCP Server](https://gitee.com/unreal2012/unity-mcp-server) (same author), a complete [MCP](https://modelcontextprotocol.io)-compliant server with 29 high-level tools, natural-language control from Claude / Cursor / CodeBuddy, and coverage far beyond the scene: uGUI building, prefabs, assets, script files, playmode, screenshots, even player builds. It works well — but it is a *system*: a Node.js bridge process, a TCP hop into Unity, npm install/build steps, and per-IDE MCP configuration.
+
+MCPX is the opposite bet: **the smallest thing that can drive the editor**. No protocol, no runtime, no packages — three C# files that answer HTTP, plus a curl wrapper. If an agent can run a shell command, it can drive the editor; no MCP client required.
+
+**Prefer MCPX when:** you work in a terminal or agent loop, you want zero dependencies, you script the editor (compile loops, batch scene tweaks, CI smoke tests), you want precise `SerializedProperty`-level access, or you intend to read and hack on the tool itself.
+
+**Prefer [Unity MCP Server](https://gitee.com/unreal2012/unity-mcp-server) when:** you want the complete MCP experience — tools auto-discovered by your AI IDE, pure natural-language control, and the high-level domains MCPX doesn't attempt (UI widgets, prefabs, assets, script CRUD, playmode, screenshots, builds). If you need *full MCP*, use that one.
+
+| | MCPX | [Unity MCP Server](https://gitee.com/unreal2012/unity-mcp-server) |
+|---|---|---|
+| Interface | Plain HTTP/JSON, `127.0.0.1:8765` | MCP (stdio) → TCP bridge → Unity (`:8080`) |
+| Dependencies | None (3 C# files + `curl`) | Node.js 18+, npm, Unity UPM package |
+| Setup | Copy folder into `Assets/Editor/` | UPM install + MCP config per IDE |
+| Surface | 13 focused routes | 29 high-level tools |
+| Property access | Any `SerializedProperty` path | Curated property setters |
+| Scope | Scene inspect/edit, compile, logs | + UI, prefabs, assets, scripts, playmode, screenshots, builds |
+| MCP-native | No — anything that speaks HTTP works | Yes — Claude / Cursor / CodeBuddy … |
+| Size | ~1,100 lines, read in one sitting | Full TypeScript project |
+
+**MCPX pros:** zero dependencies; tiny, auditable, trivially forkable; usable from curl, CI, or any agent harness — not just MCP clients; exact serialized-property-level reads and writes; every write Undoable; meaningful exit codes for scripting.
+
+**MCPX cons:** not MCP-native, so clients need the API described to them (e.g. via `AGENTS.md`) instead of tool auto-discovery; no high-level domain tools (no prefabs, assets, UI builders, builds, playmode, screenshots, scene save/load); serialized property paths are internal names and can shift between Unity versions; single active scene.
+
+**Unity MCP Server pros:** native tool discovery in AI IDEs and natural-language-first workflow; broad coverage (29 tools: GameObjects, transforms, components, uGUI, prefabs, assets, scripts, builds, playmode, screenshots); UPM one-line install; LAN-ready design; larger maintained codebase with tests.
+
+**Unity MCP Server cons:** requires a Node.js runtime and a separate bridge process to keep alive; more moving parts (TCP + reconnect + config files) to install and debug per IDE; heavier to read or modify; protocol overhead for trivial tasks like reading a single property.
+
 ## Install
 
 Copy the `MCPX/` folder into your project anywhere under an `Editor/` folder, e.g.:
